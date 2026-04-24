@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "StockSage Pro — TradingView AI",
+  "version": "1.0.0",
+  "description": "AI price predictions, entry/exit points, and trading chatbot directly on TradingView",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://www.tradingview.com/*",
+    "https://stocksage-v4.vercel.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.tradingview.com/chart/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
