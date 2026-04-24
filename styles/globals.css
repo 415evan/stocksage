@@ -487,3 +487,30 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* ── StockCard Full ───────────────────────────────── */
+.stock-card-full { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.stock-top-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.stock-left { display: flex; align-items: center; gap: 10px; }
+.stock-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.stock-price-big { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; letter-spacing: -0.5px; }
+.stock-change-big { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; }
+.stock-change-big.up { color: var(--green); }
+.stock-change-big.down { color: var(--red); }
+.tf-label-active { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.tf-selector { display: flex; gap: 4px; flex-wrap: wrap; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px; }
+.tf-btn { flex: 1; min-width: 40px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; padding: 5px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: all 0.15s; }
+.tf-btn:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
+.tf-btn.active { background: var(--accent); border-color: var(--accent); }
+.tf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tf-btn-label { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.03em; }
+.tf-btn.active .tf-btn-label { color: #fff; }
+.tf-btn-pct { font-size: 9px; font-weight: 700; letter-spacing: 0.02em; }
+.tf-btn-pct.up { color: var(--green); }
+.tf-btn-pct.down { color: var(--red); }
+.tf-btn-pct.loading { color: var(--text-dim); }
+.tf-btn.active .tf-btn-pct.up { color: rgba(255,255,255,0.9); }
+.tf-btn.active .tf-btn-pct.down { color: rgba(255,255,255,0.7); }
+.tf-btn.tf-up:not(.active):not(:hover) { border-color: rgba(34,197,94,0.15); }
+.tf-btn.tf-down:not(.active):not(:hover) { border-color: rgba(239,68,68,0.15); }
+.stock-stats-row { display: flex; gap: 16px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--border); }
