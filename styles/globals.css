@@ -443,3 +443,47 @@ body {
   .mini-right { align-items: flex-start; }
   .stock-mini-row { flex-direction: column; }
 }
+
+/* ── Streaming ────────────────────────────────────── */
+.streaming-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeUp 0.3s ease;
+}
+
+.streaming-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.streaming-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  font-family: 'DM Mono', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.cursor {
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 1s step-end infinite;
+  font-weight: 700;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
