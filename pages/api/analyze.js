@@ -19,12 +19,9 @@ export default async function handler(req, res) {
   const clean = ticker.trim().toUpperCase();
 
   try {
-    const [stockData, news] = await Promise.all([
-      fetchStockData(clean),
-      fetchNews(clean),
-    ]);
-
+    const [stockData, news] = await Promise.all([fetchStockData(clean), fetchNews(clean)]);
     const pa = buildPriceActionSummary(stockData.dailyCandles, parseFloat(stockData.price));
+
     const newsCtx = news.slice(0, 3).map(n => `- "${truncate(n.title, 100)}" (${n.source})`).join("\n") || "No news.";
     const patternCtx = pa.patterns.slice(0, 3).map(p => `- ${p.name} (${p.type})`).join("\n") || "None.";
     const structureCtx = pa.structure
@@ -33,57 +30,6 @@ export default async function handler(req, res) {
     const srCtx = `R: ${pa.srLevels.resistance.slice(0, 3).join(", ") || "None"}. S: ${pa.srLevels.support.slice(0, 3).join(", ") || "None"}`;
     const techCtx = `$${stockData.price}(${stockData.change}/${stockData.changePercent}) H:$${stockData.high} L:$${stockData.low} MA20:${stockData.ma20 || "N/A"} MA50:${stockData.ma50 || "N/A"} RSI:${stockData.rsi} MACD:${stockData.macd?.hist || "N/A"}`;
 
-    const prompt = `Analyze ${clean} as a professional trader. Return ONLY valid JSON no markdown.
-DATA:${techCtx}
-STRUCTURE:${structureCtx}
-SR:${srCtx}
-PATTERNS:${patternCtx}
-NEWS:${newsCtx}
-
-Return this EXACT JSON (all strings under 180 chars):
-{
-  "summary":"2-3 sentence plain English summary of what is happening right now",
-  "sentiment":"bullish",
-  "prediction":{
-    "shortTerm":"1-3 day price outlook with specific target price e.g. Could reach $280 in 1-3 days if holds above $270 support",
-    "mediumTerm":"1-2 week outlook with specific target e.g. Path to $290-295 range over next 1-2 weeks if market holds up",
-    "bullishTarget":"exact price target if bull case plays out e.g. $288",
-    "bearishTarget":"exact price target if bear case plays out e.g. $255",
-    "keyLevelToWatch":"the single most important price level right now and why e.g. $270 — this is the 20MA and recent support, losing it turns outlook bearish",
-    "upProbability":"estimated % chance price goes up in next 3 days based on technicals e.g. 65%",
-    "confidence":"low or medium or high"
-  },
-  "entryExit":{
-    "entryPrice":"$X",
-    "entryReason":"...",
-    "stopLoss":"$X",
-    "stopReason":"...",
-    "exit1":"$X",
-    "exit1Reason":"...",
-    "exit2":"$X",
-    "exit2Reason":"...",
-    "invalidationNote":"..."
-  },
-  "tradeSetup":{
-    "bias":"bullish",
-    "entryZone":"$X-$Y",
-    "stopLoss":"$X",
-    "target1":"$X",
-    "target2":"$X",
-    "riskReward":"1:2",
-    "timeframe":"both"
-  },
-  "priceActionRead":"...",
-  "structureRead":"...",
-  "bullish":"...",
-  "bearish":"...",
-  "noTradeZone":"...",
-  "technicalRead":"...",
-  "newsImpact":"...",
-  "beginnerWarning":"..."
-}`;
-
-    // Stream the response
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -94,8 +40,13 @@ Return this EXACT JSON (all strings under 180 chars):
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 1800,
-        stream: true,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: `Analyze ${clean} as a professional trader. Return ONLY valid JSON no markdown.
+DATA:${techCtx}
+STRUCTURE:${structureCtx}
+SR:${srCtx}
+PATTERNS:${patternCtx}
+NEWS:${newsCtx}
+JSON(all strings under 180 chars):{"summary":"...","sentiment":"bullish","prediction":{"shortTerm":"...","mediumTerm":"...","bullishTarget":"$X","bearishTarget":"$X","keyLevelToWatch":"...","upProbability":"65%","confidence":"medium"},"entryExit":{"entryPrice":"$X","entryReason":"...","stopLoss":"$X","stopReason":"...","exit1":"$X","exit1Reason":"...","exit2":"$X","exit2Reason":"...","invalidationNote":"..."},"tradeSetup":{"bias":"bullish","entryZone":"$X-$Y","stopLoss":"$X","target1":"$X","target2":"$X","riskReward":"1:2","timeframe":"both"},"priceActionRead":"...","structureRead":"...","bullish":"...","bearish":"...","noTradeZone":"...","technicalRead":"...","newsImpact":"...","beginnerWarning":"..."}` }],
       }),
     });
 
@@ -104,59 +55,25 @@ Return this EXACT JSON (all strings under 180 chars):
       throw new Error(err?.error?.message || "Claude API error");
     }
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    const claudeData = await claudeRes.json();
+    const rawText = claudeData.content[0].text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Claude did not return valid JSON");
+    const analysis = JSON.parse(jsonMatch[0]);
 
-    // Send stock data immediately so UI can show it right away
-    res.write(`data: ${JSON.stringify({ type: "stockData", stockData, news, priceAction: { patterns: pa.patterns, structure: pa.structure, srLevels: pa.srLevels } })}\n\n`);
-
-    let fullText = "";
-    const reader = claudeRes.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-              fullText += parsed.delta.text;
-              res.write(`data: ${JSON.stringify({ type: "delta", text: parsed.delta.text })}\n\n`);
-            }
-          } catch (e) {}
-        }
-      }
-    }
-
-    try {
-      const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const analysis = JSON.parse(jsonMatch[0]);
-        res.write(`data: ${JSON.stringify({
-          type: "complete",
-          analysis,
-          priceAction: { patterns: pa.patterns, structure: pa.structure, srLevels: pa.srLevels, entryExit: analysis.entryExit },
-        })}\n\n`);
-      }
-    } catch (e) {
-      res.write(`data: ${JSON.stringify({ type: "error", error: "Failed to parse analysis" })}\n\n`);
-    }
-
-    res.write("data: [DONE]\n\n");
-    res.end();
-
+    return res.status(200).json({
+      stockData,
+      analysis,
+      news,
+      priceAction: {
+        patterns: pa.patterns,
+        structure: pa.structure,
+        srLevels: pa.srLevels,
+        entryExit: analysis.entryExit,
+      },
+    });
   } catch (err) {
     console.error("Analyze error:", err.message);
-    if (!res.headersSent) return res.status(500).json({ error: err.message });
-    res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
-    res.end();
+    return res.status(500).json({ error: err.message });
   }
 }
